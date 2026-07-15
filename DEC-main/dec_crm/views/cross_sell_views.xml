@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!-- DEC.CROSS.SELL — SEARCH VIEW                                        -->
+    <!-- ================================================================== -->
+    <record id="view_cross_sell_search" model="ir.ui.view">
+        <field name="name">dec.cross.sell.search</field>
+        <field name="model">dec.cross.sell</field>
+        <field name="arch" type="xml">
+            <search string="Search Cross-Sells">
+                <field name="name" string="Reference"/>
+                <field name="contact_name"/>
+                <field name="assigned_to"/>
+                <field name="vertical_id"/>
+                <separator/>
+                <filter string="Pending" name="pending" domain="[('state', '=', 'pending')]"/>
+                <filter string="Sub-Lead Created" name="sub_lead_created" domain="[('state', '=', 'sub_lead_created')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="My Cross-Sells" name="my_cross_sells" domain="[('assigned_to', '=', uid)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- DEC.CROSS.SELL — LIST VIEW                                         -->
+    <!-- ================================================================== -->
+    <record id="view_cross_sell_tree" model="ir.ui.view">
+        <field name="name">dec.cross.sell.tree</field>
+        <field name="model">dec.cross.sell</field>
+        <field name="arch" type="xml">
+            <list string="Cross-Sells">
+                <field name="name" string="Ref"/>
+                <field name="contact_name" string="Contact"/>
+                <field name="company_name" string="Company"/>
+                <field name="vertical_id" string="Vertical"/>
+                <field name="assigned_to" string="Assigned To" widget="many2one_avatar_user"/>
+                <field name="due_date" string="Due Date"/>
+                <field name="state" string="Status"/>
+                <field name="sub_lead_id" string="Sub-Lead"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- DEC.CROSS.SELL — FORM VIEW                                         -->
+    <!-- ================================================================== -->
+    <record id="view_cross_sell_form" model="ir.ui.view">
+        <field name="name">dec.cross.sell.form</field>
+        <field name="model">dec.cross.sell</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_create_sub_lead" string="Create Sub-Lead" type="object" class="btn-primary" invisible="state != 'pending'"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name" readonly="1" class="fw-bold" style="font-size: 1.2em;"/>
+                    </group>
+                    <group>
+                        <group string="Assignment">
+                            <field name="assigned_to" readonly="1" widget="many2one_avatar_user" options="{'no_open': True}"/>
+                            <field name="vertical_id" readonly="1" options="{'no_open': True}"/>
+                            <field name="due_date" readonly="1"/>
+                        </group>
+                        <group string="Related">
+                            <field name="parent_lead_name" invisible="1"/>
+                            <field name="company_name" readonly="1"/>
+                            <field name="state" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Contact Information">
+                        <group>
+                            <field name="contact_name" readonly="1"/>
+                            <field name="contact_number" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="notes" readonly="1" nolabel="1"/>
+                        </group>
+                    </group>
+                    <group string="Sub-Lead" invisible="state != 'sub_lead_created'">
+                        <field name="sub_lead_id" readonly="1" options="{'no_open': True}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- DEC.CROSS.SELL — ACTION                                           -->
+    <!-- ================================================================== -->
+    <record id="action_cross_sell" model="ir.actions.act_window">
+        <field name="name">Cross-Sells</field>
+        <field name="res_model">dec.cross.sell</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_my_cross_sells': 1, 'search_default_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No cross-sells yet.</p>
+            <p>Go to a Lead and click "Cross-Sell" to create one.</p>
+        </field>
+    </record>
+
+</odoo>

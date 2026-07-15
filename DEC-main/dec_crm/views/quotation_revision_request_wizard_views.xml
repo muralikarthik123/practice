@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Wizard for SE to submit revision request -->
+    <record id="quotation_revision_request_wizard_form" model="ir.ui.view">
+        <field name="name">quotation.revision.request.wizard.form</field>
+        <field name="model">quotation.revision.request.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Submit Revision Request">
+                <!-- Prominent Header Section -->
+                <div class="alert alert-info mb-3" role="alert">
+                    <strong><i class="fa fa-info-circle"/> Revision Request</strong>
+                    <p class="mb-0 mt-1">Use this form when the client requests changes to an approved quotation. The Vertical Head will review and approve your revision request before you can create a new quotation.</p>
+                </div>
+
+                <group>
+                    <group>
+                        <field name="lead_id" invisible="1"/>
+                        <field name="quotation_id" invisible="1"/>
+                        <field name="lead_name" string="Lead / Opportunity" readonly="1" class="fw-bold"/>
+                        <field name="quotation_name" string="Quotation" readonly="1"/>
+                    </group>
+                </group>
+                <group string="What does the client want changed?">
+                    <field name="client_request" string="Client's Request" required="1" nolabel="1"
+                            placeholder="e.g., 'Client wants to change window dimensions from 4x5 to 5x6'"/>
+                </group>
+                <footer>
+                    <button name="action_submit_revision_request" string="📤 Submit Revision Request" type="object" class="btn-primary"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open the wizard -->
+    <record id="action_quotation_revision_request_wizard" model="ir.actions.act_window">
+        <field name="name">Revise Quotation</field>
+        <field name="res_model">quotation.revision.request.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

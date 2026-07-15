@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!-- TASK 4.1 — ROLE-BASED PIPELINE ACTIONS                              -->
+    <!-- ================================================================== -->
+
+    <!-- Costing Team — sees only QRF and Technical Meeting stage leads -->
+    <record id="action_costing_team_pipeline" model="ir.actions.act_window">
+        <field name="name">QRF Pipeline</field>
+        <field name="res_model">crm.lead</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('stage_id.name', 'in', ['QRF', 'Technical Meeting'])]</field>
+        <field name="context">{'default_type': 'opportunity'}</field>
+    </record>
+
+    <!-- Design Reviewer — sees only Design Review stage leads -->
+    <record id="action_design_reviewer_pipeline" model="ir.actions.act_window">
+        <field name="name">Design Review Pipeline</field>
+        <field name="res_model">crm.lead</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('stage_id.name', '=', 'Design Review')]</field>
+        <field name="context">{'default_type': 'opportunity'}</field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- TASK 4.1 — ROLE-BASED MENUS                                         -->
+    <!-- ================================================================== -->
+
+    <!-- Costing Team Menu -->
+    <menuitem id="menu_costing_team_pipeline"
+              name="My QRF Pipeline"
+              parent="crm.crm_menu_root"
+              action="action_costing_team_pipeline"
+              groups="dec_crm.group_costing_team"
+              sequence="5"/>
+
+    <!-- Design Reviewer Menu -->
+    <menuitem id="menu_design_reviewer_pipeline"
+              name="My Design Reviews"
+              parent="crm.crm_menu_root"
+              action="action_design_reviewer_pipeline"
+              groups="dec_crm.group_design_reviewer"
+              sequence="6"/>
+
+    <!-- ================================================================== -->
+    <!-- CROSS-SELL MENU — CRM Team + Vertical Head + Business Head + Mktg -->
+    <!-- ================================================================== -->
+    <menuitem id="menu_cross_sell"
+              name="Cross-Sells"
+              parent="crm.crm_menu_root"
+              action="action_cross_sell"
+              groups="dec_crm.group_sales_executive,dec_crm.group_crm_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo"
+              sequence="15"/>
+
+    <!-- ================================================================== -->
+    <!-- DEC ESCALATION MENUS                                                -->
+    <!-- "My Escalations" surfaces escalations assigned to the current user. -->
+    <!-- "All Escalations" is for management (BH, MH, CRM Team+).           -->
+    <!-- ================================================================== -->
+    <menuitem id="menu_dec_escalation_root"
+              name="Escalations"
+              parent="crm.crm_menu_root"
+              groups="dec_crm.group_sales_executive,dec_crm.group_crm_team,dec_crm.group_costing_team,dec_crm.group_design_reviewer,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo"
+              sequence="20"/>
+
+    <menuitem id="menu_dec_escalation_my"
+              name="My Escalations"
+              parent="menu_dec_escalation_root"
+              action="action_dec_escalation_my"
+              sequence="1"/>
+
+    <menuitem id="menu_dec_escalation_all"
+              name="All Escalations"
+              parent="menu_dec_escalation_root"
+              action="action_dec_escalation_all"
+              groups="dec_crm.group_crm_team,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo"
+              sequence="2"/>
+
+    <menuitem id="menu_dec_escalation_sub_lead"
+              name="Sub-Lead Escalations"
+              parent="menu_dec_escalation_root"
+              action="action_dec_escalation_sub_lead"
+              groups="dec_crm.group_crm_team,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo"
+              sequence="3"/>
+
+</odoo>

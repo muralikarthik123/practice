@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!-- CROSS-SELL WIZARD FORM VIEW                                         -->
+    <!-- CRM Team creates a cross-sell assignment                            -->
+    <!-- ================================================================== -->
+    <record id="view_cross_sell_wizard_form" model="ir.ui.view">
+        <field name="name">dec.cross.sell.wizard.form</field>
+        <field name="model">dec.cross.sell.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Cross-Sell">
+                <group string="Cross-Sell Details">
+                    <group string="Parent Lead">
+                        <field name="lead_id"/>
+                        <field name="lead_name" invisible="1"/>
+                    </group>
+                    <group string="Company">
+                        <field name="company_name_char" readonly="1"/>
+                    </group>
+                </group>
+                <group string="Assignment">
+                    <field name="vertical_id"
+                           options="{'no_create': True, 'no_open': True}"/>
+                    <field name="user_id" widget="many2one_avatar_user" domain="[('active', '=', True)]"/>
+                </group>
+                <group string="Contact Details">
+                    <field name="contact_name"/>
+                    <field name="contact_number"/>
+                    <field name="due_date"/>
+                </group>
+                <group string="Notes">
+                    <field name="notes" nolabel="1"/>
+                </group>
+                <footer>
+                    <button name="action_create_cross_sell" string="Create Cross-Sell" type="object" class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- CROSS-SELL WIZARD ACTION (used by lead form button)               -->
+    <!-- ================================================================== -->
+    <record id="action_cross_sell_wizard" model="ir.actions.act_window">
+        <field name="name">Create Cross-Sell</field>
+        <field name="res_model">dec.cross.sell.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_cross_sell_wizard_form"/>
+    </record>
+
+</odoo>

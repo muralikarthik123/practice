@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- OVERRIDE base.action_partner_form: Add domain to exclude branches -->
+    <!-- ============================================================ -->
+    <record id="base.action_partner_form" model="ir.actions.act_window">
+        <field name="domain">[('is_branch', '=', False)]</field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- CONTACTS: Custom filtered action (backup)                       -->
+    <!-- ============================================================ -->
+    <record id="action_contacts_no_branches" model="ir.actions.act_window">
+        <field name="name">Contacts (Persons Only)</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('is_branch', '=', False)]</field>
+    </record>
+
+    <record id="dec_view_partner_form" model="ir.ui.view">
+        <field name="name">res.partner.form.dec</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <!-- ============================================================ -->
+            <!-- BEFORE SHEET: "Create New Branch" button (Company only)       -->
+            <!-- ============================================================ -->
+            <xpath expr="//sheet" position="before">
+                <div style="margin-bottom: 8px;">
+                    <button name="action_create_branch" type="object"
+                            string="Create New Branch"
+                            class="btn btn-primary"
+                            icon="fa-sitemap"
+                            invisible="not is_company or is_branch"/>
+                </div>
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- BUTTON BOX: Smart Button for Branches                        -->
+            <!-- ============================================================ -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_child_ids" type="object"
+                        class="oe_stat_button" icon="fa-sitemap"
+                        invisible="not is_company or is_branch">
+                    <field name="branch_count" widget="statinfo" string="Branches"/>
+                </button>
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- PAGE: "Contacts" tab — show only non-branch contact persons -->
+            <!-- Override base page to filter out branches from child contacts -->
+            <!-- ============================================================ -->
+            <xpath expr="//page[@name='contact_addresses']" position="inside">
+                <field name="child_ids" domain="[('is_branch', '=', False)]" context="{'default_is_company': False}"/>
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- PAGE: Add "Branches" tab (only when branches exist)           -->
+            <!-- ============================================================ -->
+            <xpath expr="//notebook" position="inside">
+                <page name="dec_branches" string="Branches"
+                      invisible="not has_branches">
+                    <field name="child_ids" nolabel="1"
+                           domain="[('is_branch', '=', True)]"
+                           context="{'default_is_branch': True}">
+                        <list string="Branches" create="false" delete="false">
+                            <field name="name" string="Branch Name" readonly="1"/>
+                            <field name="city"/>
+                            <field name="state_id"/>
+                            <field name="country_id"/>
+                            <field name="phone"/>
+                            <field name="email"/>
+                        </list>
+                        <form>
+                            <group>
+                                <group string="Branch Details">
+                                    <field name="name" string="Branch Name"/>
+                                    <field name="phone" string="Phone"/>
+                                    <field name="email" string="Email"/>
+                                </group>
+                                <group string="Address">
+                                    <field name="street"/>
+                                    <field name="street2"/>
+                                    <field name="city"/>
+                                    <field name="state_id"
+                                           domain="[('country_id', '=', country_id)]"/>
+                                    <field name="zip"/>
+                                    <field name="country_id"/>
+                                </group>
+                            </group>
+                        </form>
+                    </field>
+                </page>
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- Show "Is Branch" checkbox before Company field (read-only)   -->
+            <!-- ============================================================ -->
+            <xpath expr="//field[@name='parent_id']" position="before">
+                <field name="is_branch"
+                       string="Is Branch"
+                       class="oe_inline"
+                       style="width: auto !important;"
+                       readonly="1"
+                       help="Mark this contact as a branch/location of the parent company"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ============================================================ -->
+    <!-- CONTACTS sub-menu: Filtered Contacts under CRM root                   -->
+    <!-- ============================================================ -->
+    <menuitem id="dec_menu_contacts_persons"
+              name="Contacts (Persons Only)"
+              parent="crm.crm_menu_root"
+              action="action_contacts_no_branches"
+              sequence="15"/>
+</odoo>

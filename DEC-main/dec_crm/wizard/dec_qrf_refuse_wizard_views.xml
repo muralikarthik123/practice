@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!-- QRF Refuse Wizard — Form View                                        -->
+    <!-- Opened when Vertical Head clicks "Refuse QRF" on the QRF form.      -->
+    <!-- ================================================================== -->
+    <record id="dec_qrf_refuse_wizard_view_form" model="ir.ui.view">
+        <field name="name">dec.qrf.refuse.wizard.form</field>
+        <field name="model">dec.qrf.refuse.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Refuse QRF">
+                <sheet>
+                    <group string="QRF Details">
+                        <field name="qrf_id" readonly="1"/>
+                        <field name="qrf_name" readonly="1" invisible="1"/>
+                        <field name="lead_id" readonly="1"/>
+                    </group>
+                    <group string="Refusal Reason">
+                        <field name="refuse_reason"
+                               nolabel="1"
+                               placeholder="Please describe why this QRF is being refused and what corrections are needed..."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_refuse"
+                            type="object"
+                            string="Confirm Refusal"
+                            class="btn-danger"
+                            confirm="Are you sure you want to refuse this QRF? The Sales Executive will be notified with your reason."/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open the Refuse Wizard (called from QRF form button) -->
+    <record id="action_dec_qrf_refuse_wizard" model="ir.actions.act_window">
+        <field name="name">Refuse QRF</field>
+        <field name="res_model">dec.qrf.refuse.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="dec_qrf_refuse_wizard_view_form"/>
+        <field name="target">new</field>
+        <field name="context">{'active_id': active_id}</field>
+    </record>
+
+</odoo>

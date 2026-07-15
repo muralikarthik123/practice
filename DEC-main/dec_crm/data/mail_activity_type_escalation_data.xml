@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- ============================================================== -->
+        <!-- DEDICATED ESCALATION ACTIVITY TYPE                              -->
+        <!-- Used by the stage-wise escalation cron to surface stalled       -->
+        <!-- leads to Business Head and Marketing Head. Visually distinct    -->
+        <!-- (warning icon, top of activity list) so it stands out from     -->
+        <!-- the 8 standard DEC progression activities (Activity 1-8).       -->
+        <!-- ============================================================== -->
+
+        <record id="mail_activity_type_escalation" model="mail.activity.type">
+            <field name="name">DEC: Escalation Alert</field>
+            <field name="res_model">crm.lead</field>
+            <field name="icon">fa-exclamation-triangle</field>
+            <field name="delay_count">0</field>
+            <field name="delay_unit">days</field>
+            <field name="sequence">100</field>
+        </record>
+
+    </data>
+</odoo>

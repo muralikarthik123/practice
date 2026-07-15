@@ -1,0 +1,940 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!-- SUB-LEADS ACTION — fresh action with explicit view_ids             -->
+    <!-- Must be defined BEFORE the view that references it                 -->
+    <!-- ================================================================== -->
+    <record id="action_dec_lead_sub_leads_v2" model="ir.actions.act_window">
+        <field name="name">Sub-Leads</field>
+        <field name="res_model">crm.lead</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('parent_lead_id', '=', active_id)]</field>
+        <field name="context">{'force_domain': [('parent_lead_id', '=', active_id)]}</field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- CRM LEAD — FORM VIEW EXTENSION                                      -->
+    <!-- ================================================================== -->
+    <record id="dec_crm_lead_view_form" model="ir.ui.view">
+        <field name="name">crm.lead.form.dec</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Make form open in edit mode directly (no need to click Edit button) -->
+            <form position="attributes">
+                <attribute name="edit">true</attribute>
+            </form>
+
+            <!-- Convert button - routes to correct wizard based on partner_id -->
+            <xpath expr="//header/button[@name='%(crm.action_crm_lead2opportunity_partner)d']" position="replace">
+                <button name="action_open_convert_wizard" string="Convert to Opportunity" type="object"
+                    class="oe_highlight" invisible="type == 'opportunity' or not active or not is_validated" data-hotkey="v"
+                    groups="dec_crm.group_crm_team"/>
+            </xpath>
+
+            <!-- Hide native Lost button — replaced by custom ones below -->
+            <xpath expr="//header/button[@name='%(crm.crm_lead_lost_action)d']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Hide native Similar Lead button (action_show_potential_duplicates) -->
+            <xpath expr="//div[@name='button_box']/button[@name='action_show_potential_duplicates']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Hide native New Quotation button — quotations are created offline, not in system -->
+            <xpath expr="//button[@name='action_sale_quotations_new']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Hide Quotation smart button — quotations are created offline -->
+            <xpath expr="//button[@name='action_view_sale_quotation']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Make Salesperson (user_id) read-only — assignment is permanent via Round Robin or manual -->
+            <xpath expr="//field[@name='user_id']" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </xpath>
+
+            <!-- Make partner_id visible always (no more hidden for new leads), can select but cannot create -->
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="invisible">0</attribute>
+                <attribute name="options">{"no_create": true}</attribute>
+                <attribute name="domain">[('is_company', '=', True)]</attribute>
+            </xpath>
+
+            <!-- Rename Contact field to Customer -->
+            <xpath expr="//field[@name='contact_name']" position="attributes">
+                <attribute name="string">Contact Person Name</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='email_from']" position="attributes">
+                <attribute name="string">Contact Person Email</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='phone']" position="attributes">
+                <attribute name="string">Contact Person Phone</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='function']" position="attributes">
+                <attribute name="string">Designation</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="string">Company</attribute>
+            </xpath>
+
+
+            <!-- ============================================================ -->
+            <!-- BUTTON BOX: Actions only                                -->
+            <!-- ============================================================ -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="is_validated" invisible="1"/>
+                <field name="is_rejected" invisible="1"/>
+                <field name="enquiry_locked" invisible="1"/>
+                <field name="is_at_qrf_stage" invisible="1"/>
+                <field name="is_at_design_review_stage" invisible="1"/>
+                <field name="is_at_technical_meeting_stage" invisible="1"/>
+                <field name="is_at_quotation_stage" invisible="1"/>
+                <field name="stage_id" invisible="1"/>
+                <field name="has_confirmed_sale_order" invisible="1"/>
+                <field name="costing_user_id" invisible="1"/>
+                <!-- QRF smart button -->
+                <button name="%(dec_crm.action_view_qrf_from_lead)d" type="action"
+                        class="oe_stat_button" icon="fa-clipboard"
+                        invisible="qrf_count == 0">
+                    <field name="qrf_count" widget="statinfo" string="QRF"/>
+                </button>
+                <!-- Meetings smart button — shows calendar events linked to this lead -->
+                <button name="action_view_meetings" type="object"
+                        class="oe_stat_button" icon="fa-calendar">
+                    <field name="meeting_count" widget="statinfo" string="Meetings"/>
+                </button>
+                <!-- Sub-Leads smart button — CRM Team + Vertical Head only -->
+                <button name="%(dec_crm.action_dec_lead_sub_leads_v2)d" type="action"
+                        class="oe_stat_button" icon="fa-users"
+                        invisible="sub_lead_count == 0"
+                        groups="dec_crm.group_crm_team,dec_crm.group_vertical_head">
+                    <field name="sub_lead_count" widget="statinfo" string="Sub-Leads"/>
+                </button>
+                <!-- Quotation smart button — view list of quotations for this lead -->
+                <button name="%(dec_crm.action_lead_quotations)d" type="action"
+                        class="oe_stat_button" icon="fa-file-pdf-o"
+                        context="{'active_id': id}"
+                        groups="dec_crm.group_costing_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_sales_executive,dec_crm.group_ceo">
+                    <field name="quotation_count" widget="statinfo" string="Quotations"/>
+                </button>
+            </xpath>
+
+<!--            &lt;!&ndash; Contextual Verification Status Banner — guides user through workflow &ndash;&gt;-->
+<!--            <xpath expr="//div[@name='button_box']" position="after">-->
+<!--                &lt;!&ndash; Capturing Details: Blue — SE needs to complete form &ndash;&gt;-->
+<!--                <div class="alert alert-info mb-2" role="alert"-->
+<!--                     invisible="verification_status != 'capturing_details'">-->
+<!--                    <strong><i class="fa fa-clipboard"/> CAPTURING DETAILS</strong> — Complete the lead details below, then click-->
+<!--                    <strong>"Send For Verification"</strong> when ready to submit for review.-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Pending: Yellow — CRM Team needs to review (only when claimed) &ndash;&gt;-->
+<!--                <div class="alert alert-warning mb-2" role="alert"-->
+<!--                     invisible="verification_status != 'pending' or claimed_by == False">-->
+<!--                    <strong><i class="fa fa-clock-o"/> PENDING VERIFICATION</strong> — Please review the-->
+<!--                    <strong>Enquiry Verification</strong> tab and click-->
+<!--                    <strong>"Approve Lead"</strong> or <strong>"Reject Lead"</strong> to proceed.-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Verified: Green — compact inline indicator &ndash;&gt;-->
+<!--                <div class="alert alert-success py-1 px-2" role="alert" style="font-size: 0.8rem;"-->
+<!--                     invisible="verification_status != 'verified'">-->
+<!--                    <i class="fa fa-check"/> Verified by <field name="validated_by" readonly="1" class="d-inline"/>-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Rejected: Red — Lead rejected, needs correction &ndash;&gt;-->
+<!--                <div class="alert alert-danger mb-2" role="alert"-->
+<!--                     invisible="verification_status != 'rejected'">-->
+<!--                    <strong><i class="fa fa-times"/> LEAD REJECTED</strong> — Please review the verification remarks,-->
+<!--                    make the necessary corrections, and resubmit for verification.-->
+<!--                </div>-->
+<!--            </xpath>-->
+
+<!--            &lt;!&ndash; Assignment Status Banner — shows claim status &ndash;&gt;-->
+<!--            <xpath expr="//div[@name='button_box']" position="after">-->
+<!--                &lt;!&ndash; Unclaimed: Orange — CRM Team can claim (only for submitted leads) &ndash;&gt;-->
+<!--                <div class="alert alert-warning mb-2" role="alert"-->
+<!--                     invisible="claimed_by != False or is_in_capturing_details == True">-->
+<!--                    <strong><i class="fa fa-hand-pointer-o"/> UNCLAIMED LEAD</strong> — Click <strong>"Claim Lead"</strong> to take ownership.-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Claimed by another user: Warning (only for submitted leads NOT claimed by me) &ndash;&gt;-->
+<!--                <div class="alert alert-danger mb-2" role="alert"-->
+<!--                     invisible="claimed_by == False or is_in_capturing_details == True or is_claimed_by_me == True">-->
+<!--                    <strong><i class="fa fa-lock"/> CLAIMED BY ANOTHER USER</strong> — This lead is claimed by <field name="claimed_by" readonly="1" class="d-inline"/>. Only the claimer or a Vertical Head can take action.-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Claimed by me: Green (only for submitted leads claimed by current user) &ndash;&gt;-->
+<!--                <div class="alert alert-success py-1 px-2" role="alert" style="font-size: 0.8rem;"-->
+<!--                     invisible="claimed_by == False or is_in_capturing_details == True or is_claimed_by_me == False">-->
+<!--                    <i class="fa fa-check"/> Claimed by <field name="claimed_by" readonly="1" class="d-inline"/> on <field name="claimed_at" readonly="1" class="d-inline"/>-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Costing: Unclaimed — show to Costing Team when in Quotation stage &ndash;&gt;-->
+<!--                <div class="alert alert-warning mb-2" role="alert"-->
+<!--                     invisible="is_at_quotation_stage == False or costing_user_id != False"-->
+<!--                     groups="dec_crm.group_costing_team">-->
+<!--                    <strong><i class="fa fa-hand-pointer-o"/> AVAILABLE FOR COSTING</strong> — Click <strong>"Claim (Costing)"</strong> to take ownership of this lead and prepare the quotation.-->
+<!--                </div>-->
+<!--                &lt;!&ndash; Costing: Claimed — show who claimed it &ndash;&gt;-->
+<!--                <div class="alert alert-info py-1 px-2" role="alert" style="font-size: 0.8rem;"-->
+<!--                     invisible="costing_user_id == False or is_at_quotation_stage == False">-->
+<!--                    <i class="fa fa-check"/> Claimed for Costing by <field name="costing_user_id" readonly="1" class="d-inline"/>-->
+<!--                </div>-->
+
+<!--            </xpath>-->
+
+            <!--&lt;!&ndash; Contextual Verification Status Banner — guides user through workflow &ndash;&gt;-->
+            <!--&lt;!&ndash; Assignment Status Banner — shows claim status &ndash;&gt;-->
+            <xpath expr="//div[@name='button_box']" position="after">
+
+
+                <div class="d-flex flex-wrap gap-2 mb-2">
+
+                    <!-- Capturing Details -->
+                    <div invisible="verification_status != 'capturing_details'">
+                        <div class="alert alert-info mb-0" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-clipboard"/>
+                            <strong>Capturing details</strong>
+                            — Complete the lead details below, then click
+                            <strong>"Send For Verification"</strong>.
+                        </div>
+                    </div>
+
+                    <!-- Pending -->
+                    <div invisible="verification_status != 'pending' or claimed_by == False">
+                        <div class="alert alert-warning mb-0" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-clock-o"/>
+                            <strong>Pending verification</strong>
+                            — Review the <strong>Enquiry Verification</strong> tab and click
+                            <strong>Approve Lead</strong> or <strong>Reject Lead</strong>.
+                        </div>
+                    </div>
+
+                    <!-- Verified -->
+                    <div invisible="verification_status != 'verified'">
+                        <div class="alert alert-success mb-0 py-1 px-2" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-check"/>
+                            Verified by
+                            <field name="validated_by" readonly="1" widget="many2one" style="display:inline-block; white-space:nowrap;"/>
+                        </div>
+                    </div>
+
+                    <!-- Rejected -->
+                    <div invisible="verification_status != 'rejected'">
+                        <div class="alert alert-danger mb-0" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-times"/>
+                            <strong>Lead rejected</strong>
+                            — Review the remarks, correct the details and resubmit.
+                        </div>
+                    </div>
+
+                    <!-- Unclaimed -->
+                    <div invisible="claimed_by != False or is_in_capturing_details == True">
+                        <div class="alert alert-warning mb-0" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-hand-pointer-o"/>
+                            <strong>Unclaimed lead</strong>
+                            — Click <strong>Claim Lead</strong>.
+                        </div>
+                    </div>
+
+                    <!-- Claimed by another -->
+                    <div invisible="claimed_by == False or is_in_capturing_details == True or is_claimed_by_me == True">
+                        <div class="alert alert-danger mb-0" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-lock"/>
+                            Claimed by
+                            <field name="claimed_by" readonly="1" widget="many2one" style="display:inline-block; white-space:nowrap;"/>
+                            — only the claimer or a Vertical Head can act.
+                        </div>
+                    </div>
+
+                    <!-- Claimed by me -->
+                    <div class="alert alert-success mb-0 py-1 px-2" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                         invisible="claimed_by == False or is_in_capturing_details == True or is_claimed_by_me == False">
+                        <i class="fa fa-check"/>
+                        Claimed by
+                        <field name="claimed_by" readonly="1" widget="many2one" style="display:inline-block; white-space:nowrap;"/>
+                        <br/>
+                        on
+                        <field name="claimed_at" readonly="1" style="display:inline-block; white-space:nowrap;"/>
+                    </div>
+
+                    <!-- Available for Costing -->
+                    <div invisible="is_at_quotation_stage == False or costing_user_id != False"
+                         groups="dec_crm.group_costing_team">
+                        <div class="alert alert-warning mb-0" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-hand-pointer-o"/>
+                            <strong>Available for costing</strong>
+                            — Click <strong>Claim (Costing)</strong>.
+                        </div>
+                    </div>
+
+                    <!-- Claimed for Costing -->
+                    <div invisible="costing_user_id == False or is_at_quotation_stage == False">
+                        <div class="alert alert-info mb-0 py-1 px-2" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <i class="fa fa-check"/>
+                            Claimed for Costing by
+                            <field name="costing_user_id" readonly="1" widget="many2one" style="display:inline-block; white-space:nowrap;"/>
+                        </div>
+                    </div>
+
+                </div>
+
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- HEADER BUTTONS: Send For Verification (before stage/statusbar) -->
+            <!-- ============================================================ -->
+            <xpath expr="//button[@name='action_restore']" position="before">
+                <!-- Send For Verification — visible when status is Capturing Details, moves to Pending -->
+                <button name="action_send_for_verification" type="object"
+                        string="Send For Verification" class="btn-primary"
+                        invisible="is_in_capturing_details == False"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo"/>
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- HEADER BUTTONS: After the "Lost" button                      -->
+            <!-- ============================================================ -->
+            <xpath expr="//button[@name='action_restore']" position="after">
+                <!-- Claim Lead — visible to CRM Team on submitted but unclaimed leads -->
+                <button name="action_claim_lead" type="object"
+                        string="Claim Lead" class="btn-warning" icon="fa-hand-pointer-o"
+                        invisible="claimed_by != False or is_in_capturing_details == True"
+                        groups="dec_crm.group_crm_team"/>
+                <!-- Claim (Costing) — visible to Costing Team at Quotation stage on unclaimed leads -->
+                <button name="action_claim_lead_for_costing" type="object"
+                        string="Claim (Costing)" class="btn-warning" icon="fa-hand-pointer-o"
+                        invisible="is_at_quotation_stage == False or costing_user_id != False"
+                        groups="dec_crm.group_costing_team"/>
+                <!-- Task 2.1 — Lead Verification -->
+                <button name="action_approve_lead" type="object"
+                        string="Approve Lead" class="btn-success" icon="fa-check"
+                        invisible="is_validated or type == 'opportunity' or claimed_by == False"
+                        groups="dec_crm.group_crm_team"/>
+                <button name="action_reject_lead" type="object"
+                        string="Reject Lead" class="btn-danger" icon="fa-times"
+                        invisible="is_validated or type == 'opportunity' or claimed_by == False"
+                        groups="dec_crm.group_crm_team"/>
+
+                <!-- Task 2.1(b) — Enquiry Info Received: Move Enquiry → QRF -->
+                <button name="action_enquiry_info_received" type="object"
+                        string="Enquiry Info Received" class="btn-primary" icon="fa-download"
+                        invisible="type == 'lead' or enquiry_locked == True"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- QRF — Create QRF Button: Only visible at QRF stage -->
+                <button name="action_create_qrf" type="object"
+                        string="Create QRF" class="btn-primary" icon="fa-file-text-o"
+                        invisible="type == 'lead' or not is_at_qrf_stage"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- Stage Progression — Move to Design Review (from QRF stage, if needed) -->
+                <button name="action_move_to_design_review" type="object"
+                        string="Move to Design Review" class="btn-primary"
+                        invisible="type == 'lead' or is_at_qrf_stage == False or needs_design_review == False"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- Stage Progression — Move to Technical Meeting (from QRF stage, NO Design Review needed) -->
+                <button name="action_move_to_technical_meeting" type="object"
+                        string="Move to Technical Meeting" class="btn-primary"
+                        invisible="type == 'lead' or is_at_qrf_stage == False or needs_design_review == True or has_any_approved_qrf == False"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- Stage Progression — Move to Technical Meeting (from Design Review stage) -->
+                <button name="action_move_to_technical_meeting" type="object"
+                        string="Move to Technical Meeting" class="btn-primary"
+                        invisible="type == 'lead' or is_at_design_review_stage == False"
+                        groups="dec_crm.group_design_reviewer,dec_crm.group_crm_team,dec_crm.group_sales_executive"/>
+
+                <!-- Stage Progression — Skip to Quotation (if Technical Meeting not needed) -->
+                <button name="action_skip_to_quotation" type="object"
+                        string="Skip to Quotation" class="btn-secondary"
+                        invisible="type == 'lead' or is_at_design_review_stage == False or design_review_status != 'approved'"
+                        groups="dec_crm.group_design_reviewer,dec_crm.group_crm_team,dec_crm.group_sales_executive"/>
+
+                <!-- QUOTATION — Attach Quotation (opens wizard to upload document) -->
+                <button name="%(dec_crm.action_quotation_attach_wizard)d" type="action"
+                        string="📎 Attach Quotation" class="btn-secondary"
+                        invisible="type == 'lead' or is_at_quotation_stage == False"
+                        context="{'active_id': id}"
+                        groups="dec_crm.group_costing_team,dec_crm.group_vertical_head"/>
+
+                <!-- Design Review — Mark as Reviewed (visible at Design Review stage, before approval) -->
+                <button name="action_mark_design_reviewed" type="object"
+                        string="Mark as Reviewed" class="btn-success"
+                        invisible="type == 'lead' or is_at_design_review_stage == False or design_review_status == 'approved'"
+                        groups="dec_crm.group_design_reviewer,dec_crm.group_vertical_head"/>
+
+                <!-- Task 4.3 — Cross-Sell Lead -->
+                <button name="%(dec_crm.action_cross_sell_wizard)d" type="action"
+                        string="Cross-Sell Lead" class="btn-secondary" icon="fa-exchange"
+                        invisible="lead_type == 'child' or claimed_by == False"
+                        context="{'active_id': id}"
+                        groups="dec_crm.group_crm_team"/>
+
+                <!-- Lost button: CRM Team only on Leads -->
+                <button name="%(dec_crm.action_dec_crm_lead_lost)d" type="action"
+                        string="Lost" class="btn-secondary"
+                        invisible="type != 'lead' or won_status != 'pending' or not active or claimed_by == False"
+                        groups="dec_crm.group_crm_team"/>
+
+                <!-- Lost button: CRM Team + Sales Exec on Opportunities -->
+                <button name="%(dec_crm.action_dec_crm_lead_lost)d" type="action"
+                        string="Lost" class="btn-secondary"
+                        invisible="type != 'opportunity' or won_status != 'pending' or not active or claimed_by == False"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- PO — Enter Client PO: visible only when a confirmed Sale Order exists -->
+                <button name="%(dec_crm.action_crm_lead_po_wizard)d" type="action"
+                        string="Enter Client PO" class="btn-primary" icon="fa-envelope-o"
+                        context="{'active_id': id}"
+                        invisible="type != 'opportunity' or has_confirmed_sale_order == False"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- Revise Quotation — SE requests revision when client wants changes -->
+                <button name="%(dec_crm.action_quotation_revision_request_wizard)d" type="action"
+                        string="Revise Quotation" class="btn-warning" icon="fa-edit"
+                        context="{'active_id': id}"
+                        invisible="type != 'opportunity' or has_approved_quotation == False or has_pending_revision_request == True"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- Send to Client — SE sends approved quotation to client via email -->
+                <button name="%(dec_crm.action_crm_lead_send_quotation_wizard)d" type="action"
+                        string="📤 Send to Client" class="btn-success"
+                        context="{'active_id': id}"
+                        invisible="type != 'opportunity' or has_approved_quotation == False or is_sent_to_client == True"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                <!-- Move to Negotiations — visible at Quotation stage only,
+                     only when there is an approved quotation.
+                     Note: must use the precomputed boolean
+                     is_at_quotation_stage rather than the relational
+                     stage_id.sequence traversal because OWL's
+                     expression evaluator does not reliably resolve
+                     Many2one.subfield chains and returns 'undefined',
+                     which crashes the form on render. -->
+                <button name="action_move_to_negotiations"
+                        string="Move to Negotiations"
+                        type="object"
+                        class="btn-primary"
+                        icon="fa-handshake-o"
+                        invisible="type != 'opportunity' or has_approved_quotation == False or not is_at_quotation_stage"
+                        groups="dec_crm.group_sales_executive,dec_crm.group_crm_team,dec_crm.group_costing_team"/>
+
+                <!-- Upload Revised Quotation — visible only in Negotiations
+                     stage for Costing Team. Opens the attach wizard
+                     which finds the active draft quotation on the
+                     lead (created by action_approve_revision) and
+                     updates its document. -->
+                <button name="%(dec_crm.action_quotation_attach_wizard)d"
+                        type="action"
+                        string="📎 Upload Revised Quotation"
+                        class="btn-primary"
+                        icon="fa-paperclip"
+                        context="{'active_id': id,
+                                  'default_lead_id': id}"
+                        invisible="type != 'opportunity' or not is_at_negotiations_stage"
+                        groups="dec_crm.group_costing_team"/>
+
+            </xpath>
+
+            <!-- ============================================================ -->
+            <!-- DEC CUSTOM FIELDS PAGE IN NOTEBOOK                           -->
+            <!-- ============================================================ -->
+            <xpath expr="//notebook" position="inside">
+
+                <!-- Assigned Users Tab -->
+                <page string="Assigned Users" name="assigned_users_tab">
+                    <group>
+                        <group string="Primary Assignment">
+                            <field name="user_id" string="Sales Executive" readonly="1"/>
+                            <field name="assignment_state" string="Claim Status"/>
+                            <field name="claimed_by" string="Claimed By" readonly="1"/>
+                            <field name="claimed_at" string="Claimed At" readonly="1"/>
+                        </group>
+                        <group string="Role Assignments">
+                            <field name="vh_user_id" string="Vertical Head" readonly="1"/>
+                            <field name="design_user_id" string="Design User" readonly="1"/>
+                            <field name="costing_user_id" string="Costing User" readonly="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Assignment Tracking">
+                            <field name="created_by_crm" readonly="1"/>
+                            <field name="rr_source" readonly="1"/>
+                            <field name="lead_assignment_date" readonly="1"/>
+                        </group>
+                    </group>
+                </page>
+
+                <!-- DEC Project Details Tab -->
+                <page string="Customer Details" name="dec_details_tab">
+                    <group>
+                        <group string="Project Information">
+<!--                            <field name="qrf_received_count" readonly="1"/>-->
+<!--                            <field name="quotation_send_count" readonly="1"/>-->
+<!--                            <field name="quotation_revision_count" readonly="1"/>-->
+                            <field name="project_name" placeholder="e.g., Greenview Hospital"/>
+                            <field name="product_interest_ids" widget="many2many_tags"
+                                   options="{'color_field': 'color', 'no_create': True, 'no_create_edit': True}"
+                                   placeholder="Select verticals..."/>
+                            <!-- Per-Vertical Quantity Table — lines auto-created from Product Interest, users fill Qty + UOM -->
+                            <field name="vertical_qty_ids" mode="list" class="w-100"
+                                   string="Estimated Quantities by Vertical"
+                                   context="{'default_lead_id': id}">
+                                <list string="Vertical Quantities" editable="bottom" create="0" delete="0">
+                                    <field name="vertical_id" string="Vertical" options="{'no_open': True}"/>
+                                    <field name="estimated_qty" placeholder="Enter quantity..."/>
+                                    <field name="product_uom_id" string="UOM"
+                                           placeholder="Select UOM"
+                                           options="{'no_create': True, 'no_open': True}"/>
+                                </list>
+                            </field>
+                            <field name="same_as_contact_address"/>
+                            <!-- Custom Project Address Fields -->
+                            <label for="project_street" string="Project Address"/>
+                            <div class="o_address_format">
+                                <field name="project_street" placeholder="Street..." class="o_address_street"/>
+                                <field name="project_street2" placeholder="Street 2..." class="o_address_street"/>
+                                <field name="project_city" placeholder="City" class="o_address_city"/>
+                                <field name="project_state_id" placeholder="State" class="o_address_state"
+                                       options="{'no_open': True}"/>
+                                <field name="project_zip" placeholder="ZIP" class="o_address_zip"/>
+                                <field name="project_country_id" placeholder="Country" class="o_address_country"
+                                       options="{'no_open': True, 'no_create': True}"/>
+                            </div>
+                        </group>
+                        <group string="Project Qualification">
+                            <field name="project_stage"/>
+                            <field name="budget_value"/>
+                            <field name="timeline_urgency"/>
+                            <field name="competitor_present"/>
+                            <field name="competitor_name"
+                                   invisible="not competitor_present"
+                                   placeholder="Enter competitor name..."/>
+                            <field name="decision_maker_identified"/>
+                            <field name="decision_maker_name"
+                                   invisible="not decision_maker_identified"
+                                   placeholder="Enter decision maker name..."/>
+                            <field name="decision_maker_designation"
+                                   invisible="not decision_maker_identified"
+                                   placeholder="Enter designation..."/>
+                            <field name="decision_maker_mobile"
+                                   invisible="not decision_maker_identified"
+                                   placeholder="Enter mobile number..."/>
+                        </group>
+                    </group>
+                </page>
+
+                <!-- Contact Persons Tab -->
+                <page string="Contact Persons" name="contact_persons_tab">
+                    <div class="alert alert-info mb-3" role="alert" invisible="not partner_id">
+                        Select or create contact persons linked to the selected Company.
+                    </div>
+                    <button name="%(dec_crm.action_crm_lead_contact_person_wizard)d" type="action"
+                            string="Add Contact Person" class="btn-primary mb-3"
+                            context="{'default_lead_id': id, 'default_company_id': partner_id}"
+                            groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                    <field name="contact_person_ids">
+                        <list string="Contact Persons">
+                            <field name="name" string="Contact Person Name"/>
+                            <field name="email" string="Contact Person Email"/>
+                            <field name="phone" string="Contact Person Phone"/>
+                            <field name="designation" string="Designation"/>
+                            <field name="company_id" string="Company"/>
+                        </list>
+                    </field>
+                </page>
+
+                <!-- Branches Tab -->
+                <page string="Branches" name="branches_tab">
+                    <div class="alert alert-info mb-3" role="alert" invisible="not partner_id">
+                        Add branch / location details for the selected Company.
+                    </div>
+                    <button name="%(dec_crm.action_crm_lead_branch_wizard)d" type="action"
+                            string="Add Branch" class="btn-primary mb-3"
+                            context="{'default_lead_id': id}"
+                            groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+
+                    <field name="branch_ids">
+                        <list string="Branches">
+                            <field name="name" string="Branch Name"/>
+                            <field name="contact_person_name" string="Contact Person Name"/>
+                            <field name="phone" string="Phone"/>
+                            <field name="email" string="Email"/>
+                            <field name="city" string="City"/>
+                            <field name="state_id" string="State"/>
+                            <field name="zip" string="ZIP"/>
+                        </list>
+                    </field>
+                </page>
+
+                <!-- Enquiry Documents Tab — shows documents uploaded via enquiry info wizard -->
+                <!-- Visible only on Opportunity (type != 'lead'), regardless of enquiry_locked state -->
+                <page string="Enquiry Documents" name="enquiry_documents_tab"
+                      invisible="type == 'lead'">
+                    <div class="alert alert-info mb-3" role="alert">
+                        <strong>Enquiry Documents</strong> — Documents uploaded when moving this lead to QRF stage appear here. These documents are read-only; to upload new documents, use the "Cross-Sell Lead" button.
+                    </div>
+                    <group string="Documents">
+                        <field name="enquiry_document_attachments" readonly="1" widget="many2many_binary"/>
+                    </group>
+                </page>
+
+                <!-- TASK 2.1 — Enquiry Verification Tab -->
+                <page string="Enquiry Verification" name="verification"
+                      invisible="type == 'opportunity'"
+                      groups="dec_crm.group_crm_team,dec_crm.group_sales_executive">
+
+                    <!-- Checklist & Remarks - CRM Team Only -->
+                    <group groups="dec_crm.group_crm_team">
+                        <group string="Verification Checklist">
+                            <field name="budget_verified" readonly="is_validated"/>
+                            <field name="budget_value" readonly="1"/>
+                            <field name="decision_maker_confirmed" readonly="is_validated"/>
+                            <field name="technical_fit_confirmed" readonly="is_validated"/>
+                        </group>
+                        <group string="Remarks">
+                            <field name="validation_remarks" nolabel="1" colspan="2"
+                                   placeholder="Enter remarks (required for rejection)..."
+                                   readonly="is_validated"/>
+                        </group>
+                    </group>
+
+                    <!-- Decision Maker Info (from DEC Details — read-only reference for verifier) -->
+                    <group string="Decision Maker Info" invisible="not decision_maker_identified">
+                        <field name="decision_maker_name" readonly="1"/>
+                        <field name="decision_maker_designation" readonly="1"/>
+                        <field name="decision_maker_mobile" readonly="1"/>
+                    </group>
+
+                    <!-- Competitor Info (from DEC Details — read-only reference for verifier) -->
+                    <group string="Competitor Info" invisible="not competitor_present">
+                        <field name="competitor_name" readonly="1"/>
+                    </group>
+                </page>
+
+                <!-- TASK 2.2 — QRF Tab -->
+                <page string="QRF" name="qrf_tab"
+                      invisible="type == 'lead' or not enquiry_locked"
+                      groups="dec_crm.group_sales_executive,dec_crm.group_crm_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo">
+
+                    <field name="qrf_ids" mode="list" create="0" context="{'default_lead_id': id}">
+                        <list string="QRF Forms">
+                            <field name="name" readonly="1"/>
+                            <field name="product_vertical_ids" string="Vertical"/>
+                            <field name="date"/>
+                            <field name="state" widget="badge"
+                                   decoration-info="state == 'draft'"
+                                   decoration-warning="state == 'pending_approval'"
+                                   decoration-success="state == 'approved'"
+                                   decoration-danger="state == 'rejected'"/>
+                            <field name="submitted_by"/>
+                            <field name="submitted_date"/>
+                        </list>
+                    </field>
+                </page>
+
+                <!-- TASK 2.3 — Design Review Tab -->
+                <page string="Design Review" name="design_review_tab"
+                      invisible="type == 'lead' or not needs_design_review"
+                      groups="dec_crm.group_sales_executive,dec_crm.group_design_reviewer,dec_crm.group_crm_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo">
+
+                    <div class="alert alert-success" role="alert"
+                         invisible="design_review_status != 'approved'">
+                        <strong><i class="fa fa-check"/> Design Reviewed</strong> —
+                        Reviewed by <field name="design_reviewed_by" readonly="1" widget="many2one_avatar_user" class="d-inline"/>
+                        on <field name="design_review_date" readonly="1" class="d-inline"/>
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="design_review_status == 'approved'">
+                        <strong><i class="fa fa-clock-o"/> Pending Design Review</strong> — Add quantities and click "Mark as Reviewed".
+                    </div>
+
+                    <group>
+                        <group string="Review Details" readonly="design_review_status == 'approved'">
+                            <field name="design_review_status" readonly="1"/>
+                            <field name="design_reviewed_by" readonly="1"/>
+                            <field name="design_review_date" readonly="1"/>
+                        </group>
+                        <group string="Reviewer Remarks" readonly="design_review_status == 'approved'">
+                            <field name="design_review_remarks" nolabel="1" colspan="2"
+                                   placeholder="Enter design review remarks..."/>
+                        </group>
+                    </group>
+
+                    <!-- Design Review Documents uploaded by Design Team -->
+                    <group string="Design Review Attachments"
+                           invisible="type == 'lead' or is_at_design_review_stage == False" colspan="2">
+                        <field name="design_document_ids" nolabel="1" colspan="2">
+                            <list decoration-danger="True" editable="bottom" create="true" delete="true">
+                                <field name="name" required="1" placeholder="Document name..."/>
+                                <field name="file_data" widget="binary" string="File"/>
+                                <field name="file_name" invisible="1"/>
+                                <field name="upload_date" readonly="1"/>
+                                <field name="uploaded_by" widget="many2one_avatar_user" readonly="1"/>
+                                <field name="remarks" placeholder="Optional remarks..."/>
+                            </list>
+                        </field>
+                    </group>
+                    <p class="text-muted" invisible="type == 'lead' or is_at_design_review_stage == False">
+                        Upload design drawings, PDFs, and other review documents.
+                    </p>
+
+                    <!-- QRF Attachments from approved QRFs -->
+                    <group string="QRF Attachments" invisible="not qrf_attachments">
+                        <field name="qrf_attachments" readonly="1" widget="many2many_binary"/>
+                    </group>
+                </page>
+
+                <!-- TASK 2.5 — Technical Meeting Tab (visible at Technical Meeting stage or after completion) -->
+                <page string="Technical Meeting" name="technical_meeting_tab"
+                      invisible="type == 'lead' or (is_at_technical_meeting_stage == False and technical_meeting_state != 'completed')"
+                      groups="dec_crm.group_sales_executive,dec_crm.group_crm_team,dec_crm.group_costing_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_ceo">
+
+                    <div class="alert alert-success" role="alert"
+                         invisible="technical_meeting_state != 'completed'">
+                        <strong><i class="fa fa-check"/> Technical Meeting Completed</strong>
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="technical_meeting_state != 'pending'">
+                        <strong><i class="fa fa-clock-o"/> Technical Meeting Pending</strong> — Schedule and complete the meeting.
+                    </div>
+
+                    <!-- Calendar Events linked to this lead -->
+                    <group string="Scheduled Meetings">
+                        <field name="calendar_event_ids" readonly="1">
+                            <list string="Meetings">
+                                <field name="name"/>
+                                <field name="start"/>
+                                <field name="stop"/>
+                            </list>
+                        </field>
+                    </group>
+
+                    <group>
+                        <group string="Meeting Details">
+                            <field name="technical_meeting_date"/>
+                            <field name="technical_meeting_state" readonly="1"/>
+                            <field name="technical_meeting_attendees" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <group string="Meeting Minutes">
+                        <field name="technical_meeting_notes" nolabel="1" colspan="2"/>
+                    </group>
+
+                    <group>
+                        <button name="action_schedule_technical_meeting" type="object"
+                                string="📅 Schedule Meeting" class="btn-primary"
+                                invisible="technical_meeting_state == 'completed' or is_at_technical_meeting_stage == False"/>
+                        <button name="action_complete_technical_meeting" type="object"
+                                string="✅ Mark Meeting Complete" class="btn-success"
+                                invisible="technical_meeting_state == 'completed' or is_at_technical_meeting_stage == False or needs_design_review == True"/>
+                        <!-- Move to Quotation — for path WITHOUT Design Review -->
+                        <button name="action_move_to_quotation_no_design_review" type="object"
+                                string="📋 Move to Quotation" class="btn-success"
+                                invisible="is_at_technical_meeting_stage == False"
+                                groups="dec_crm.group_sales_executive,dec_crm.group_crm_team"/>
+                    </group>
+                </page>
+
+                <!-- QUOTATION TAB — visible at Quotation stage -->
+                <page string="Quotation" name="quotation_tab"
+                      invisible="type == 'lead' or is_at_quotation_stage == False"
+                      groups="dec_crm.group_costing_team,dec_crm.group_vertical_head,dec_crm.group_business_head,dec_crm.group_marketing_head,dec_crm.group_sales_executive,dec_crm.group_ceo">
+
+                    <!-- Instructions -->
+                    <div class="alert alert-info">
+                        <p>Use the <strong>"📎 Attach Quotation"</strong> button in the header to add quotation documents.</p>
+                        <p>Click the <strong>"Quotations"</strong> smart button above to view all attached quotations.</p>
+                    </div>
+
+                    <!-- Show list of quotations attached to this lead -->
+                    <field name="quotation_ids"
+                            readonly="1"
+                            options='{"always_reload": true}'/>
+
+                </page>
+
+
+                <page string="Won" invisible="won_status != 'won'">
+                    <group>
+                        <field name="focus_sale_order_number"/>
+                        <field name="received_date"/>
+                        <field name="client_po" filename="client_po_filename"/>
+                        <field name="po_value" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Verticals" name="achieved_verticals">
+                            <field name="achieved_vertical_ids">
+                                <list editable="bottom">
+                                    <field name="vertical_id"/>
+                                    <field name="amount"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </page>
+
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- CRM LEAD — LIST VIEW EXTENSION                                      -->
+    <!-- ================================================================== -->
+    <record id="dec_crm_lead_view_list" model="ir.ui.view">
+        <field name="name">crm.lead.list.dec</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_leads"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='team_id']" position="after">
+                <field name="product_interest_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}"
+                       readonly="1" optional="show"/>
+                <field name="project_name" optional="show"/>
+                <field name="budget_value" optional="show"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- CRM LEAD — SEARCH VIEW EXTENSION                                    -->
+    <!-- ================================================================== -->
+    <record id="dec_crm_lead_view_search" model="ir.ui.view">
+        <field name="name">crm.lead.search.dec</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.view_crm_case_leads_filter"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='team_id']" position="after">
+                <field name="product_interest_ids"/>
+                <field name="project_name"/>
+            </xpath>
+
+            <xpath expr="//filter[@name='lost']" position="after">
+                <separator/>
+                <filter string="Budget Approved" name="budget_approved"
+                        domain="[('budget_status','=','approved')]"/>
+                <filter string="Budget Tentative" name="budget_tentative"
+                        domain="[('budget_status','=','tentative')]"/>
+                <separator/>
+                <filter string="Competitor Present" name="competitor_present"
+                        domain="[('competitor_present','=',True)]"/>
+                <filter string="Decision Maker Identified" name="decision_maker"
+                        domain="[('decision_maker_identified','=',True)]"/>
+            </xpath>
+
+            <xpath expr="//filter[@name='saleschannel']" position="after">
+                <filter string="Product Interest" name="group_product_interest"
+                        context="{'group_by': 'product_interest_ids'}"/>
+                <filter string="Project Stage" name="group_project_stage"
+                        context="{'group_by': 'project_stage'}"/>
+                <filter string="Budget Status" name="group_budget_status"
+                        context="{'group_by': 'budget_status'}"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- CRM OPPORTUNITY — LIST VIEW EXTENSION                               -->
+    <!-- ================================================================== -->
+    <record id="dec_crm_case_tree_view_oppor" model="ir.ui.view">
+        <field name="name">crm.lead.list.opp.dec</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='team_id']" position="after">
+                <field name="product_interest_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}"
+                       readonly="1" optional="show"/>
+                <field name="project_name" optional="show"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- CRM LEAD — CRM QUEUE KANBAN VIEW (for CRM Team)                    -->
+    <!-- ================================================================== -->
+    <record id="dec_crm_lead_view_kanban_crm_queue" model="ir.ui.view">
+        <field name="name">crm.lead.kanban.crm.queue</field>
+        <field name="model">crm.lead</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="assignment_state" default_order="create_date desc"
+                    records_draggable="0">
+                <field name="assignment_state"/>
+                <field name="claimed_by"/>
+                <field name="user_id"/>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_interest_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                <field name="stage_id"/>
+                <field name="create_date"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_header d-flex justify-content-between align-items-center mb-2">
+                                <field name="assignment_state" widget="label_selection"
+                                       options="{'classes': {'unclaimed': 'text-warning', 'claimed': 'text-success'}}"/>
+                            </div>
+                            <div class="o_kanban_details">
+                                <strong class="o_kanban_record_title">
+                                    <field name="name"/>
+                                </strong>
+                                <div t-if="record.partner_id.value" class="text-muted">
+                                    <field name="partner_id"/>
+                                </div>
+                                <div t-if="record.product_interest_ids.value" class="mt-1">
+                                    <field name="product_interest_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                                </div>
+                                <div class="o_kanban_record_bottom mt-2">
+                                    <div class="oe_kanban_bottom_left">
+                                        <field name="user_id" widget="partner_short"/>
+                                    </div>
+                                    <div class="oe_kanban_bottom_right">
+                                        <field name="create_date" widget="remaining_days"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Action window for CRM Queue -->
+    <record id="dec_crm_lead_action_crm_queue" model="ir.actions.act_window">
+        <field name="name">CRM Lead Queue</field>
+        <field name="res_model">crm.lead</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('assignment_state', 'in', ['unclaimed', 'claimed', False])]</field>
+        <field name="context">{'search_default_assignment_state': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No leads in queue. All leads have been claimed.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu item for CRM Queue -->
+    <menuitem id="dec_crm_menu_crm_queue"
+              name="CRM Lead Queue"
+              parent="crm.crm_menu_sales"
+              action="dec_crm_lead_action_crm_queue"
+              sequence="5"
+              groups="dec_crm.group_crm_team,dec_crm.group_vertical_head"/>
+
+</odoo>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ================================================================== -->
+    <!-- LEAD REJECTION WIZARD ACTION                                        -->
+    <!-- ================================================================== -->
+    <record id="action_dec_crm_lead_reject" model="ir.actions.act_window">
+        <field name="name">Reject Lead</field>
+        <field name="res_model">dec.crm.lead.reject</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- ================================================================== -->
+    <!-- LEAD REJECTION WIZARD VIEW                                           -->
+    <!-- ================================================================== -->
+    <record id="view_dec_crm_lead_reject_wizard" model="ir.ui.view">
+        <field name="name">dec.crm.lead.reject.wizard</field>
+        <field name="model">dec.crm.lead.reject</field>
+        <field name="arch" type="xml">
+            <form string="Reject Lead">
+                <group string="Rejection Details">
+                    <group string="Lead">
+                        <field name="lead_id" readonly="1" string="Lead"/>
+                    </group>
+                    <group string="Reason">
+                        <separator/>
+                        <field name="reason" placeholder="Enter reason for rejection..."/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_confirm_reject" string="Reject Lead" type="object" class="btn-danger"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

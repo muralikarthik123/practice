@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Wizard to attach quotation document -->
+    <record id="quotation_attach_wizard_form" model="ir.ui.view">
+        <field name="name">quotation.attach.wizard.form</field>
+        <field name="model">quotation.attach.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Attach Quotation Document">
+                <group>
+                    <group>
+                        <field name="lead_id" invisible="1"/>
+                        <field name="lead_name" string="Lead / Opportunity" readonly="1" class="fw-bold"/>
+                        <field name="existing_quotation_id" readonly="1"
+                               string="Existing Quotation (Revision Mode)"
+                               invisible="not existing_quotation_id"/>
+                    </group>
+                </group>
+                <group string="Upload Quotation Document">
+                    <field name="quotation_attachment" string="Quotation File" required="1"/>
+                    <field name="quotation_filename" string="Filename" required="1" placeholder="e.g., Quotation_V1.pdf"/>
+                    <field name="remarks" string="Remarks (Optional)" placeholder="Any notes about this quotation..."/>
+                </group>
+                <footer>
+                    <button name="action_attach_and_save" string="💾 Save &amp; Attach" type="object" class="btn-primary"/>
+                    <button name="action_attach_and_submit" string="📤 Save &amp; Submit for Approval" type="object" class="btn-success"/>
+                    <button string="Cancel" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open the wizard -->
+    <record id="action_quotation_attach_wizard" model="ir.actions.act_window">
+        <field name="name">Attach Quotation</field>
+        <field name="res_model">quotation.attach.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>
